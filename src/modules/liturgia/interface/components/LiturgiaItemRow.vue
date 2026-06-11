@@ -22,7 +22,7 @@
         icon
         size="34"
         variant="text"
-        :color="$vuetify.theme.current.dark ? '#f1c40f' : '#c49000'"
+        :color="isDark ? '#f1c40f' : '#c49000'"
         :title="$t('modules.liturgia.edit_item')"
         @click.stop="$emit('edit-toggle', item.id)"
       >
@@ -281,7 +281,7 @@
             icon
             size="34"
             variant="text"
-            :color="$vuetify.theme.current.dark ? '#f1c40f' : '#c49000'"
+            :color="isDark ? '#f1c40f' : '#c49000'"
             @click.stop="$emit('edit-toggle', item.id)"
           >
             <v-icon size="18">mdi-pencil</v-icon>
@@ -338,6 +338,9 @@ export default {
   emits: ["execute", "audio-only", "lyric", "delete", "edit-toggle", "update:item"],
 
   computed: {
+    isDark() {
+      return this.$appdata.get("is_dark", false);
+    },
     completed() {
       const states = this.$appdata.get("modules.liturgia.item_states", {});
       return states[this.item.id]?.completed === true;
