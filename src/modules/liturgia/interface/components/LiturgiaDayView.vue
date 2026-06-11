@@ -10,7 +10,7 @@
     />
 
     <!-- Left: draggable item list -->
-    <div class="flex-grow-1" style="min-width: 0; overflow-y: auto;">
+    <div class="flex-grow-1" style="min-width: 0; overflow-y: auto;" ref="listEl">
       <!-- Empty state -->
       <div
         v-if="dayItems.length === 0"
@@ -34,8 +34,7 @@
             :day-index="dayIndex"
             :edit-open="editOpenId === element.id"
             @execute="executeItem($event)"
-            @audio-only="onAudioOnly($event)"
-            @lyric="onLyric($event)"
+            @stop="stopItem($event)"
             @delete="deleteItem(element.id)"
             @edit-toggle="toggleEdit(element.id)"
             @update:item="updateItem($event)"
@@ -67,14 +66,19 @@
       />
     </div>
 
-    <!-- Execute snackbar (F7/UX) -->
+    <!-- Execution snackbar -->
     <v-snackbar
-      v-model="execSnackbar"
-      :timeout="2000"
-      location="bottom"
-      color="primary"
+      v-model="snackbar.show"
+      :timeout="2500"
+      location="bottom right"
+      color="surface"
     >
-      {{ execSnackbarText }}
+      {{ snackbar.text }}
+      <template v-if="snackbar.action" #actions>
+        <v-btn variant="text" size="small" @click="snackbar.action.fn">
+          {{ snackbar.action.label }}
+        </v-btn>
+      </template>
     </v-snackbar>
 
   </div>
@@ -84,20 +88,9 @@
 import draggable from "vuedraggable";
 import LiturgiaItemRow from "./LiturgiaItemRow.vue";
 import LiturgiaFiles from "@/modules/liturgia/helpers/LiturgiaFiles";
-
-// LiturgiaTimeTracking is owned by Engineer A. Import defensively —
-// if the file doesn't exist yet (before A merges), the module resolves
-// to a no-op stub so all B's calls are safe.
-let LiturgiaTimeTracking;
-try {
-  LiturgiaTimeTracking = require("@/modules/liturgia/helpers/LiturgiaTimeTracking").default;
-} catch (_) {
-  LiturgiaTimeTracking = {
-    isEnabled: () => false,
-    recordExecution: () => {},
-    closeEntryForItem: () => {},
-  };
-}
+import { resolveHandler } from "@/modules/liturgia/helpers/LiturgiaFileConfig";
+import { ensurePopup } from "@/modules/liturgia/helpers/LiturgiaPopupRouting";
+import { recordExecution, closeEntryForItem } from "@/modules/liturgia/helpers/LiturgiaTimeTracking";
 
 export default {
   name: "LiturgiaDayView",
@@ -115,9 +108,11 @@ export default {
     editOpenId: null,
     // Holds the item pending re-attach so onReattachPicked knows which item to execute
     _pendingReattachItem: null,
-    // Execute snackbar
-    execSnackbar: false,
-    execSnackbarText: "",
+    snackbar: {
+      show: false,
+      text: '',
+      action: null,
+    },
   }),
 
   computed: {
@@ -141,7 +136,7 @@ export default {
       return this.$appdata.get("modules.liturgia.note_panel_open", false);
     },
 
-    // Finding 4: true while the media mini-player is shown or minimized
+    // true while the media mini-player is shown or minimized
     mediaVisible() {
       return (
         this.$appdata.get("modules.media.show", false) ||
@@ -151,7 +146,7 @@ export default {
   },
 
   watch: {
-    // Finding 4: auto-clear now_playing when the media mini-player is fully closed
+    // auto-clear now_playing when the media mini-player is fully closed
     mediaVisible(val) {
       if (!val && this.$appdata.get("modules.liturgia.now_playing") !== null) {
         this.$appdata.set("modules.liturgia.now_playing", null);
@@ -160,123 +155,251 @@ export default {
   },
 
   methods: {
-    // ── Playback mode label for snackbar ──────────────────────────────────
-    _modeLabel(eff) {
-      const key = eff === "sung" ? "playback.sung" : eff === "playback" ? "playback.playback" : "playback.none";
-      return this.$t(`modules.liturgia.${key}`);
+    // ─── snackbar helper ─────────────────────────────────────────────────────
+    _showSnackbar(text, action = null) {
+      this.snackbar.text = text;
+      this.snackbar.action = action;
+      this.snackbar.show = true;
     },
 
-    // ── Show execute snackbar ─────────────────────────────────────────────
-    _showExecSnackbar(item, eff) {
-      this.execSnackbarText = `${this.$t("modules.liturgia.executing")}: ${item.display_name} (${this._modeLabel(eff)})`;
-      this.execSnackbar = false;
-      this.$nextTick(() => { this.execSnackbar = true; });
+    // ─── routing opts factory ─────────────────────────────────────────────────
+    _routingOpts() {
+      return {
+        showSnackbar: (text, action) => this._showSnackbar(text, action ? { label: action.label, fn: action.action } : null),
+        t: (key) => this.$t(key),
+      };
     },
 
-    // ── executeItem ───────────────────────────────────────────────────────
+    // ─── main execution entry point ──────────────────────────────────────────
     async executeItem(payload) {
       const item = payload.item;
       const mode = payload.mode;
 
       if (item.type === "music") {
-        // F2: always coerce to 'sung'; ignore stored playback_mode
-        const eff = mode || "sung";
-        const liturgia_index = Date.now();
-
-        this.$appdata.set("modules.liturgia.active_item", {
-          type: "song",
-          song_id: item.music_ref?.song_id ?? null,
-          id_album: item.music_ref?.id_album ?? null,
-          playback_mode: eff,
-          display_name: item.display_name,
-          liturgia_index,
-          media_url: null,
-          media_type: null,
-          timer_duration: null,
-          timer_label: null,
-        });
-
-        // F1/F3: map domain → Media-native vocabulary; omit trigger for 'none'
-        if (eff !== "none") {
-          this.$appdata.set("modules.liturgia.audio_trigger", null);
-          this.$appdata.set("modules.liturgia.audio_trigger", {
-            song_id: item.music_ref.song_id,
-            mode: eff === "playback" ? "instrumental" : "audio",
-          });
-        }
-
-        // F7: write now_playing
-        this.$appdata.set("modules.liturgia.now_playing", {
-          day_index: this.dayIndex,
-          item_id: item.id,
-          mode: eff,
-          liturgia_index,
-        });
-
-        // F7/UX: execute snackbar
-        this._showExecSnackbar(item, eff);
-
-        // F4: time tracking — before auto-mark so open entry isn't closed
-        LiturgiaTimeTracking.recordExecution({ dayIndex: this.dayIndex, item, mode: eff });
-
-        // F4: auto-mark after recordExecution
-        this._autoMark(item);
-
+        await this._executeMusicItem(item, mode);
       } else if (item.type === "file") {
-        // If file handle is missing, open re-attach picker and defer execution
+        // Re-attach gate: no live handle -> open picker and defer
         if (!LiturgiaFiles.has(item.id)) {
           this._pendingReattachItem = item;
           this.$refs.reattachInput.value = "";
           this.$refs.reattachInput.click();
           return;
         }
-
         await this._executeFileItem(item);
       }
+      // Category items: no execution (click on category does nothing)
     },
 
-    async _executeFileItem(item) {
-      const url = LiturgiaFiles.objectUrl(item.id);
-      const kind = item.file_ref?.kind;
-      const liturgia_index = Date.now();
+    // ─── music execution ──────────────────────────────────────────────────────
+    async _executeMusicItem(item, modeOverride) {
+      const eff = modeOverride || item.music_ref?.playback_mode || "sung";
 
-      if (kind === "video" || kind === "image") {
-        this.$appdata.set("modules.liturgia.active_item", {
-          type: "media",
-          song_id: null,
-          id_album: null,
-          playback_mode: null,
-          display_name: item.display_name,
-          liturgia_index,
-          media_url: url,
-          media_type: kind,
-          timer_duration: null,
-          timer_label: null,
+      // Special-case: audio-only and lyric actions — no active_item / now_playing / popup changes
+      if (eff === "audio_only_sung") {
+        this.$appdata.set("modules.liturgia.audio_trigger", null);
+        this.$appdata.set("modules.liturgia.audio_trigger", {
+          song_id: item.music_ref?.song_id,
+          mode: "audio",
         });
-      } else if (kind === "audio") {
-        LiturgiaFiles.playAudio(url);
-      } else {
-        LiturgiaFiles.openDocument(url);
+        return;
+      }
+      if (eff === "audio_only_playback") {
+        this.$appdata.set("modules.liturgia.audio_trigger", null);
+        this.$appdata.set("modules.liturgia.audio_trigger", {
+          song_id: item.music_ref?.song_id,
+          mode: "instrumental",
+        });
+        return;
+      }
+      if (eff === "lyric") {
+        this.$media.openLyric({
+          id_music: item.music_ref?.song_id,
+          id_album: item.music_ref?.id_album,
+        });
+        return;
       }
 
-      // F7: write now_playing for file items
+      // 1. Write active_item (presenter loads song slides from this)
+      this.$appdata.set("modules.liturgia.active_item", {
+        type: "song",
+        song_id: item.music_ref?.song_id ?? null,
+        id_album: item.music_ref?.id_album ?? null,
+        playback_mode: eff,
+        display_name: item.display_name,
+        liturgia_index: Date.now(),
+        media_url: null,
+        media_type: null,
+        media_text: null,
+        timer_duration: item.planned_duration ?? null,
+        timer_label: item.display_name,
+      });
+
+      // 2. Audio trigger (null-then-set pattern; media watcher handles $media.open)
+      if (eff !== "none") {
+        const triggerMode = eff === "playback" ? "instrumental" : "audio";
+        this.$appdata.set("modules.liturgia.audio_trigger", null);
+        this.$appdata.set("modules.liturgia.audio_trigger", {
+          song_id: item.music_ref.song_id,
+          mode: triggerMode,
+        });
+      }
+
+      // 3. Write now_playing
       this.$appdata.set("modules.liturgia.now_playing", {
         day_index: this.dayIndex,
         item_id: item.id,
-        mode: "none",
-        liturgia_index,
+        mode: eff,
+        liturgia_index: Date.now(),
       });
 
-      // F7/UX: execute snackbar
-      this._showExecSnackbar(item, "none");
+      // 4. Exec snackbar
+      this._showSnackbar(this.$t("modules.liturgia.executing") + ": " + (item.display_name || ""));
 
-      // F4: time tracking
-      LiturgiaTimeTracking.recordExecution({ dayIndex: this.dayIndex, item, mode: "file" });
+      // 5. Record execution for time tracking
+      recordExecution({ dayIndex: this.dayIndex, item, mode: eff });
 
-      // F4: auto-mark after recordExecution
+      // 6. Auto-mark completed
       this._autoMark(item);
+
+      // 7. Popup routing (FINAL step)
+      if (eff === "none") {
+        await ensurePopup("presenter", this._routingOpts());
+      } else {
+        await ensurePopup("media", this._routingOpts());
+      }
+
+      // 8. Auto-scroll the row into view
+      this._scrollToItem(item.id);
     },
 
+    // ─── file execution ───────────────────────────────────────────────────────
+    async _executeFileItem(item) {
+      const liveFile = LiturgiaFiles.get(item.id);
+      if (!liveFile) return;
+
+      // F12: stop any prior hidden audio first
+      LiturgiaFiles.stopAudio();
+
+      // Self-heal: rederive kind from live File; persist if changed
+      const healedRef = LiturgiaFiles.rederiveAndHeal(item, liveFile);
+      if (healedRef !== item.file_ref) {
+        // Persist the healed file_ref
+        this._persistItemUpdate({ ...item, file_ref: healedRef });
+        item = { ...item, file_ref: healedRef };
+      }
+
+      const kind = item.file_ref?.kind || "document";
+      const handler = resolveHandler(kind);
+      const url = LiturgiaFiles.objectUrl(item.id);
+
+      // Dispatch by handler
+      if (handler === "tab") {
+        LiturgiaFiles.tab(url);
+
+      } else if (handler === "download") {
+        LiturgiaFiles.download(url, item.file_ref?.name || item.display_name);
+        const doneKey = kind === "document"
+          ? "modules.liturgia.download_done_doc"
+          : "modules.liturgia.download_done";
+        const msg = this.$t(doneKey, { name: item.file_ref?.name || item.display_name });
+        this._showSnackbar(msg);
+
+      } else if (handler === "hidden_audio") {
+        LiturgiaFiles.onAudioEnded(() => {
+          this.$appdata.set("modules.liturgia.now_playing", null);
+          closeEntryForItem(this.dayIndex, item.id);
+        });
+        LiturgiaFiles.playAudio(url);
+
+      } else if (handler === "popup") {
+        // 'popup' — write active_item and route to presenter
+        if (kind === "text") {
+          // Read file text (200KB cap) before writing active_item
+          const text = await this._readFileText(liveFile, 204800);
+          this.$appdata.set("modules.liturgia.active_item", {
+            type: "media",
+            song_id: null,
+            id_album: null,
+            playback_mode: null,
+            display_name: item.display_name,
+            liturgia_index: Date.now(),
+            media_url: url,
+            media_type: "text",
+            media_text: text,
+            timer_duration: item.planned_duration ?? null,
+            timer_label: item.display_name,
+          });
+        } else {
+          this.$appdata.set("modules.liturgia.active_item", {
+            type: "media",
+            song_id: null,
+            id_album: null,
+            playback_mode: null,
+            display_name: item.display_name,
+            liturgia_index: Date.now(),
+            media_url: url,
+            media_type: kind,
+            media_text: null,
+            timer_duration: item.planned_duration ?? null,
+            timer_label: item.display_name,
+          });
+        }
+        await ensurePopup("presenter", this._routingOpts());
+      }
+
+      // Tail (every path)
+      this.$appdata.set("modules.liturgia.now_playing", {
+        day_index: this.dayIndex,
+        item_id: item.id,
+        mode: "file",
+        liturgia_index: Date.now(),
+      });
+      this._showSnackbar(this.$t("modules.liturgia.executing") + ": " + (item.display_name || ""));
+      recordExecution({ dayIndex: this.dayIndex, item, mode: "file" });
+      this._autoMark(item);
+      this._scrollToItem(item.id);
+    },
+
+    // ─── stop control (F13) ───────────────────────────────────────────────────
+    stopItem(item) {
+      const np = this.$appdata.get("modules.liturgia.now_playing");
+      if (!np || np.item_id !== item.id) return;
+
+      if (item.type === "music") {
+        // Media-engine song: close(true) cascades restore via A's watcher
+        this.$media.close(true);
+      } else if (item.type === "file") {
+        const kind = item.file_ref?.kind || "document";
+        const handler = resolveHandler(kind);
+
+        if (handler === "hidden_audio") {
+          LiturgiaFiles.stopAudio();
+          this.$appdata.set("modules.liturgia.now_playing", null);
+          closeEntryForItem(this.dayIndex, item.id);
+        } else if (handler === "popup") {
+          // For video in popup: write a cover-only active_item to stop playback
+          if (kind === "video") {
+            this.$appdata.set("modules.liturgia.active_item", {
+              type: "media",
+              song_id: null,
+              id_album: null,
+              playback_mode: null,
+              display_name: item.display_name,
+              liturgia_index: Date.now(),
+              media_url: null,
+              media_type: null,
+              media_text: null,
+              timer_duration: null,
+              timer_label: null,
+            });
+          }
+          this.$appdata.set("modules.liturgia.now_playing", null);
+          closeEntryForItem(this.dayIndex, item.id);
+        }
+      }
+    },
+
+    // ─── re-attach picker ─────────────────────────────────────────────────────
     onReattachPicked(e) {
       const file = e.target.files[0];
       const item = this._pendingReattachItem;
@@ -288,34 +411,7 @@ export default {
       this._executeFileItem(item);
     },
 
-    // F3/F10: Audio-only handler (does NOT write active_item or now_playing)
-    onAudioOnly(payload) {
-      const { item, mode } = payload;
-      if (!item.music_ref?.song_id) return;
-
-      this.$appdata.set("modules.liturgia.audio_trigger", null);
-      this.$appdata.set("modules.liturgia.audio_trigger", {
-        song_id: item.music_ref.song_id,
-        mode: mode === "playback" ? "instrumental" : "audio",
-      });
-
-      // F4: time tracking
-      const trackMode = mode === "playback" ? "audio_only_playback" : "audio_only_sung";
-      LiturgiaTimeTracking.recordExecution({ dayIndex: this.dayIndex, item, mode: trackMode });
-
-      // auto-mark
-      this._autoMark(item);
-    },
-
-    // F10: Lyric-only handler — opens lyric panel, no slide/audio/now_playing
-    onLyric(payload) {
-      const { item } = payload;
-      if (!item.music_ref?.song_id) return;
-      if (this.$media && typeof this.$media.openLyric === "function") {
-        this.$media.openLyric({ id_music: item.music_ref.song_id });
-      }
-    },
-
+    // ─── utilities ────────────────────────────────────────────────────────────
     _autoMark(item) {
       if (this.$appdata.get("modules.liturgia.auto_mark_enabled")) {
         const prev = this.$appdata.get(`modules.liturgia.item_states.${item.id}`, {});
@@ -324,6 +420,41 @@ export default {
           completed: true,
         });
       }
+    },
+
+    _persistItemUpdate(updatedItem) {
+      const items = this.$userdata.get(`modules.liturgia.days.${this.dayIndex}.items`, []);
+      const idx = items.findIndex((it) => it.id === updatedItem.id);
+      if (idx === -1) return;
+      const updated = [...items];
+      updated[idx] = updatedItem;
+      this.$userdata.set(`modules.liturgia.days.${this.dayIndex}.items`, updated);
+    },
+
+    _scrollToItem(itemId) {
+      this.$nextTick(() => {
+        const el = this.$el.querySelector(`[data-item-id="${itemId}"]`);
+        if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
+    },
+
+    /**
+     * Reads a File as text with a byte cap. Appends '...' if truncated.
+     * @param {File} file
+     * @param {number} maxBytes
+     * @returns {Promise<string>}
+     */
+    _readFileText(file, maxBytes) {
+      return new Promise((resolve) => {
+        const slice = file.size > maxBytes ? file.slice(0, maxBytes) : file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target.result || "";
+          resolve(file.size > maxBytes ? text + "..." : text);
+        };
+        reader.onerror = () => resolve("");
+        reader.readAsText(slice);
+      });
     },
 
     deleteItem(itemId) {

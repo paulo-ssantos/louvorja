@@ -1,11 +1,11 @@
 <template>
-  <div v-if="enabled" class="liturgia-time-bar d-flex align-center px-2 py-1 text-caption">
+  <div v-if="enabled" class="liturgia-time-bar d-flex align-center px-2">
 
-    <!-- Live dot + current item name + per-item elapsed (only while an entry is open) -->
+    <!-- Live dot + current item name + per-item elapsed (only while entry is open) -->
     <template v-if="openEntry">
-      <v-icon size="10" color="error" class="mr-1 liturgia-time-bar__live-dot">mdi-circle</v-icon>
-      <span class="mr-1 text-medium-emphasis liturgia-time-bar__item-name">{{ openEntry.display_name }}</span>
-      <span class="mr-2 liturgia-time-bar__item-elapsed" :class="itemElapsedClass">{{ itemElapsedLabel }}</span>
+      <div class="liturgia-time-bar__live-dot" />
+      <span class="liturgia-time-bar__item-name mr-1">{{ openEntry.display_name }}</span>
+      <span class="liturgia-time-bar__item-elapsed mr-2" :class="itemElapsedClass">{{ itemElapsedLabel }}</span>
     </template>
 
     <!-- Schedule status chip -->
@@ -14,7 +14,8 @@
       :color="statusColor"
       size="x-small"
       variant="tonal"
-      class="mr-2 liturgia-time-bar__status"
+      class="liturgia-time-bar__status"
+      style="height:16px; font-size:10px;"
     >
       {{ statusLabel }}
     </v-chip>
@@ -22,40 +23,11 @@
     <v-spacer />
 
     <!-- Total elapsed -->
-    <v-icon size="14" class="mr-1 text-medium-emphasis">mdi-timer-outline</v-icon>
-    <span class="mr-2 text-medium-emphasis liturgia-time-bar__elapsed" :title="t('time.total_elapsed')">
+    <v-icon size="12" class="mr-1 liturgia-time-bar__muted-icon">mdi-timer-outline</v-icon>
+    <span class="liturgia-time-bar__elapsed liturgia-time-bar__muted" :title="t('time.total_elapsed')">
       {{ elapsedLabel }}
     </span>
 
-    <!-- Stop current item button (only while something is playing) -->
-    <v-btn
-      v-if="nowPlaying"
-      size="x-small"
-      variant="tonal"
-      color="warning"
-      class="mr-1 liturgia-time-bar__stop"
-      @click="stopCurrentItem"
-    >
-      <v-icon size="14" class="mr-1">mdi-stop-circle-outline</v-icon>
-      {{ t('time.stop_item') }}
-    </v-btn>
-
-    <!-- Report button -->
-    <v-btn
-      size="x-small"
-      variant="text"
-      class="liturgia-time-bar__report"
-      @click="showReport = true"
-    >
-      <v-icon size="14" class="mr-1">mdi-chart-bar</v-icon>
-      {{ t('time.report_btn') }}
-    </v-btn>
-
-    <!-- Report dialog -->
-    <LiturgiaReportDialog
-      v-model="showReport"
-      :day-index="dayIndex"
-    />
   </div>
 </template>
 
@@ -65,14 +37,10 @@ import {
   getLog,
   computeStatus,
   formatDuration,
-  closeEntryForItem,
 } from '../../helpers/LiturgiaTimeTracking.js';
-import LiturgiaReportDialog from './LiturgiaReportDialog.vue';
 
 export default {
   name: 'LiturgiaTimeBar',
-
-  components: { LiturgiaReportDialog },
 
   props: {
     dayIndex: {
@@ -84,7 +52,6 @@ export default {
   data: () => ({
     now: new Date(),
     tickTimer: null,
-    showReport: false,
   }),
 
   computed: {
@@ -175,46 +142,63 @@ export default {
     t(text) {
       return this.$t(`modules.liturgia.${text}`);
     },
-
-    stopCurrentItem() {
-      const np = this.nowPlaying;
-      if (!np) return;
-
-      // Close the time log entry
-      closeEntryForItem(this.dayIndex, np.item_id);
-
-      // Clear now_playing
-      this.$appdata.set('modules.liturgia.now_playing', null);
-    },
   },
 };
 </script>
 
 <style scoped>
 .liturgia-time-bar {
-  background: rgba(0, 0, 0, 0.06);
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  min-height: 28px;
+  height: 24px;
   font-size: 11px;
+  background: rgba(0, 0, 0, 0.05);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
 }
 
-.liturgia-time-bar__elapsed {
-  font-variant-numeric: tabular-nums;
-  min-width: 36px;
+.liturgia-time-bar__live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgb(var(--v-theme-error));
+  flex-shrink: 0;
+  margin-right: 4px;
+  animation: timebar-pulse 1s ease-in-out infinite;
+}
+
+@keyframes timebar-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.liturgia-time-bar__item-name {
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
 }
 
 .liturgia-time-bar__item-elapsed {
   font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  flex-shrink: 0;
 }
 
 .liturgia-time-bar__status {
-  font-size: 10px;
+  flex-shrink: 0;
 }
 
-.liturgia-time-bar__stop,
-.liturgia-time-bar__report {
-  font-size: 10px;
-  min-height: 22px !important;
-  height: 22px !important;
+.liturgia-time-bar__elapsed {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  min-width: 36px;
+}
+
+.liturgia-time-bar__muted {
+  opacity: 0.65;
+}
+
+.liturgia-time-bar__muted-icon {
+  opacity: 0.65;
 }
 </style>

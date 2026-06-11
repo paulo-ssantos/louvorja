@@ -245,6 +245,8 @@ export default {
             playback_mode: "sung",
             // F3: has_instrumental (undefined = unknown = available)
             ...(hasInstrumental !== undefined ? { has_instrumental: hasInstrumental } : {}),
+            // F3: duration chip snapshot (when the record provides it)
+            ...(song.duration || song.time ? { duration: song.duration ?? song.time } : {}),
           },
           file_ref: null,
         };

@@ -14,205 +14,37 @@
   >
     <!-- Ribbon header -->
     <template v-slot:header>
-      <div class="liturgia-ribbon">
-        <!-- Ribbon tab row -->
-        <v-tabs density="compact" class="liturgia-ribbon-tabs" :model-value="0">
-          <v-tab :value="0" class="text-caption">{{ t('ribbon.tab') }}</v-tab>
-        </v-tabs>
-
-        <!-- Ribbon groups row -->
-        <div class="liturgia-ribbon-groups d-flex align-start pa-1">
-
-          <!-- Group: Adicionar -->
-          <div class="liturgia-ribbon-group d-flex flex-column align-center">
-            <div class="d-flex flex-row align-center">
-              <div class="liturgia-ribbon-cmd d-flex flex-column align-center">
-                <v-btn
-                  variant="text"
-                  size="small"
-                  @click="addDialog = true"
-                  class="liturgia-cmd-btn"
-                >
-                  <div class="d-flex flex-column align-center">
-                    <v-icon size="22">mdi-playlist-plus</v-icon>
-                    <span class="text-caption mt-1">{{ t('add_item') }}</span>
-                  </div>
-                </v-btn>
-              </div>
-            </div>
-            <div class="text-caption text-medium-emphasis text-center liturgia-group-caption">{{ t('ribbon.group_add') }}</div>
-          </div>
-
-          <v-divider vertical class="mx-2" />
-
-          <!-- Group: Item (bulk operations) -->
-          <div class="liturgia-ribbon-group d-flex flex-column align-center">
-            <div class="d-flex flex-row align-center flex-wrap">
-              <div class="liturgia-ribbon-cmd d-flex flex-column align-center">
-                <v-btn
-                  variant="text"
-                  size="small"
-                  @click="markAll"
-                  class="liturgia-cmd-btn"
-                >
-                  <div class="d-flex flex-column align-center">
-                    <v-icon size="22">mdi-checkbox-multiple-marked-outline</v-icon>
-                    <span class="text-caption mt-1">{{ t('bulk.mark_all') }}</span>
-                  </div>
-                </v-btn>
-              </div>
-              <div class="liturgia-ribbon-cmd d-flex flex-column align-center">
-                <v-btn
-                  variant="text"
-                  size="small"
-                  @click="deselectAll"
-                  class="liturgia-cmd-btn"
-                >
-                  <div class="d-flex flex-column align-center">
-                    <v-icon size="22">mdi-checkbox-multiple-blank-outline</v-icon>
-                    <span class="text-caption mt-1">{{ t('bulk.deselect_all') }}</span>
-                  </div>
-                </v-btn>
-              </div>
-              <div class="liturgia-ribbon-cmd d-flex flex-column align-center">
-                <v-btn
-                  variant="text"
-                  size="small"
-                  @click="invertSelection"
-                  class="liturgia-cmd-btn"
-                >
-                  <div class="d-flex flex-column align-center">
-                    <v-icon size="22">mdi-swap-horizontal</v-icon>
-                    <span class="text-caption mt-1">{{ t('bulk.invert') }}</span>
-                  </div>
-                </v-btn>
-              </div>
-              <div class="liturgia-ribbon-cmd d-flex flex-column align-center">
-                <v-btn
-                  variant="text"
-                  size="large"
-                  color="error"
-                  :disabled="selectedIds.length === 0"
-                  @click="deleteSelected"
-                  class="liturgia-cmd-btn"
-                >
-                  <div class="d-flex flex-column align-center">
-                    <v-icon size="28">mdi-close-thick</v-icon>
-                    <span class="text-caption mt-1">{{ t('bulk.delete_selected') }}</span>
-                  </div>
-                </v-btn>
-              </div>
-            </div>
-            <div class="text-caption text-medium-emphasis text-center liturgia-group-caption">{{ t('ribbon.group_item') }}</div>
-          </div>
-
-          <v-divider vertical class="mx-2" />
-
-          <!-- Group: Opções -->
-          <div class="liturgia-ribbon-group d-flex flex-column align-center">
-            <div class="d-flex flex-column align-start px-1">
-              <v-checkbox
-                density="compact"
-                hide-details
-                :model-value="autoMarkEnabled"
-                @update:model-value="toggleAutoMark"
-                :label="t('options.auto_mark')"
-                class="liturgia-options-check"
-              />
-              <v-checkbox
-                density="compact"
-                hide-details
-                :model-value="notePanelOpen"
-                @update:model-value="toggleNotes"
-                :label="t('options.show_notes')"
-                class="liturgia-options-check"
-              />
-            </div>
-            <div class="text-caption text-medium-emphasis text-center liturgia-group-caption">{{ t('ribbon.group_options') }}</div>
-          </div>
-
-          <v-divider vertical class="mx-2" />
-
-          <!-- Group: Tempos (Time tracking) -->
-          <div class="liturgia-ribbon-group d-flex flex-column align-center">
-            <div class="d-flex flex-row align-center gap-1 px-1">
-
-              <!-- Enable switch -->
-              <div class="d-flex flex-column align-center mr-2">
-                <v-tooltip :text="t('time.enable_tooltip')" location="bottom" max-width="260">
-                  <template v-slot:activator="{ props }">
-                    <v-switch
-                      v-bind="props"
-                      density="compact"
-                      hide-details
-                      color="primary"
-                      :model-value="timeTrackingEnabled"
-                      @update:model-value="toggleTimeTracking"
-                      class="liturgia-time-switch"
-                    />
-                  </template>
-                </v-tooltip>
-                <span class="text-caption liturgia-time-switch-label">{{ t('time.enable_label') }}</span>
-              </div>
-
-              <!-- Planned start time input (only shown when enabled) -->
-              <div v-if="timeTrackingEnabled" class="d-flex flex-column align-start">
-                <span class="text-caption text-medium-emphasis mb-1" style="font-size:10px">
-                  {{ t('time.planned_start_label') }}
-                </span>
-                <v-text-field
-                  density="compact"
-                  hide-details
-                  variant="outlined"
-                  type="time"
-                  :model-value="plannedStart"
-                  @update:model-value="onPlannedStartChange"
-                  class="liturgia-time-input"
-                  style="width:100px; font-size:12px"
-                />
-              </div>
-
-            </div>
-            <div class="text-caption text-medium-emphasis text-center liturgia-group-caption">{{ t('ribbon.group_time') }}</div>
-          </div>
-
-          <v-divider vertical class="mx-2" />
-
-          <!-- Group: Backup -->
-          <div class="liturgia-ribbon-group d-flex flex-column align-center">
-            <div class="d-flex flex-row align-center">
-              <div class="liturgia-ribbon-cmd d-flex flex-column align-center">
-                <v-btn
-                  variant="text"
-                  size="small"
-                  @click="onExport"
-                  class="liturgia-cmd-btn"
-                >
-                  <div class="d-flex flex-column align-center">
-                    <v-icon size="22">mdi-download</v-icon>
-                    <span class="text-caption mt-1">{{ t('backup.export') }}</span>
-                  </div>
-                </v-btn>
-              </div>
-              <div class="liturgia-ribbon-cmd d-flex flex-column align-center">
-                <v-btn
-                  variant="text"
-                  size="small"
-                  @click="triggerImport"
-                  class="liturgia-cmd-btn"
-                >
-                  <div class="d-flex flex-column align-center">
-                    <v-icon size="22">mdi-upload</v-icon>
-                    <span class="text-caption mt-1">{{ t('backup.import') }}</span>
-                  </div>
-                </v-btn>
-              </div>
-            </div>
-            <div class="text-caption text-medium-emphasis text-center liturgia-group-caption">{{ t('ribbon.group_backup') }}</div>
-          </div>
-
-        </div>
-      </div>
+      <LiturgiaRibbon
+        v-model:ribbon-tab="ribbonTab"
+        :is-dark="isDark"
+        :selected-count="selectedIds.length"
+        :auto-mark-enabled="autoMarkEnabled"
+        :note-panel-open="notePanelOpen"
+        :time-tracking-enabled="timeTrackingEnabled"
+        :planned-start="plannedStart"
+        :active-day-index="activeDayIndex"
+        :auto-open-popup="autoOpenPopup"
+        @add-dialog="addDialog = true"
+        @mark-all="markAll"
+        @deselect-all="deselectAll"
+        @invert-selection="invertSelection"
+        @delete-selected="deleteSelected"
+        @toggle-auto-mark="toggleAutoMark"
+        @toggle-notes="toggleNotes"
+        @export="onExport"
+        @import="triggerImport"
+        @toggle-time-tracking="toggleTimeTracking"
+        @planned-start-change="onPlannedStartChange"
+        @stop-item="stopCurrentItem"
+        @show-report="showReport = true"
+        @copy-tsv="onCopyTsv"
+        @download-csv="onDownloadCsv"
+        @reset-day="onResetDay"
+        @open-file-config="showFileConfig = true"
+        @toggle-auto-open-popup="toggleAutoOpenPopup"
+        @open-telao="openTelao()"
+        @restore-defaults="onRestoreDefaults"
+      />
 
       <!-- Hidden file input for import -->
       <input
@@ -228,17 +60,18 @@
     <v-tabs
       v-model="activeDayIndex"
       density="compact"
+      height="32"
       show-arrows
       class="liturgia-day-tabs"
       @update:model-value="onDayChange"
     >
       <v-tab v-for="(label, i) in dayLabels" :key="i" :value="i">
-        <v-icon :color="DAY_COLORS[i]" class="mr-1" size="16">mdi-calendar</v-icon>
-        {{ label }}
+        <v-icon :color="DAY_COLORS[i]" size="14" style="margin-right:6px;">mdi-calendar</v-icon>
+        <span :style="i === todayIndex ? 'font-weight:600;' : ''">{{ label }}</span>
       </v-tab>
     </v-tabs>
 
-    <!-- Time bar (per active day) -->
+    <!-- Time bar (read-only strip — kept above day list, ticks on all tabs) -->
     <LiturgiaTimeBar :day-index="activeDayIndex" />
 
     <!-- Day content -->
@@ -251,6 +84,12 @@
     <!-- Add item dialog -->
     <LiturgiaAddDialog v-model="addDialog" @add="onAddItem" />
 
+    <!-- File config dialog -->
+    <LiturgiaFileConfigDialog
+      v-model="showFileConfig"
+      @restored="restoredSnackbar = true"
+    />
+
     <!-- Import confirm dialog -->
     <v-dialog v-model="importConfirm" max-width="420">
       <v-card>
@@ -260,6 +99,24 @@
           <v-spacer />
           <v-btn variant="text" @click="importConfirm = false">{{ t('import.cancel_btn') }}</v-btn>
           <v-btn color="error" variant="flat" @click="confirmImport">{{ t('import.confirm_btn') }}</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <!-- Report dialog (Tempos tab ribbon button) -->
+    <LiturgiaReportDialog
+      v-model="showReport"
+      :day-index="activeDayIndex"
+    />
+
+    <!-- Reset confirm dialog -->
+    <v-dialog v-model="resetConfirm" max-width="380">
+      <v-card>
+        <v-card-text class="pt-4">{{ t('time.reset_confirm') }}</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" size="small" @click="resetConfirm = false">{{ t('cancel_btn') }}</v-btn>
+          <v-btn color="error" variant="flat" size="small" @click="confirmResetDay">{{ t('time.reset_btn') }}</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -287,6 +144,17 @@
         </v-btn>
       </template>
     </v-snackbar>
+
+    <!-- Copy done snackbar -->
+    <v-snackbar v-model="copySnack" color="success" timeout="1800" location="bottom">
+      {{ t('time.copy_btn') }} ✓
+    </v-snackbar>
+
+    <!-- Defaults restored snackbar -->
+    <v-snackbar v-model="restoredSnackbar" timeout="2000" location="bottom">
+      {{ t('config.restored') }}
+    </v-snackbar>
+
   </l-window>
 </template>
 
@@ -296,12 +164,27 @@ import LWindow from "@/components/Window.vue";
 import LiturgiaDayView from "./components/LiturgiaDayView.vue";
 import LiturgiaAddDialog from "./components/LiturgiaAddDialog.vue";
 import LiturgiaTimeBar from "./components/LiturgiaTimeBar.vue";
+import LiturgiaReportDialog from "./components/LiturgiaReportDialog.vue";
+import LiturgiaFileConfigDialog from "./components/LiturgiaFileConfigDialog.vue";
+import LiturgiaRibbon from "./components/LiturgiaRibbon.vue";
 import { exportLj, parseLj } from "../helpers/LiturgiaBackup.js";
 import {
   isEnabled as timeTrackingIsEnabled,
   getPlannedStart,
   setPlannedStart,
+  buildReportRows,
+  toCsv,
+  toTsv,
+  resetDay,
+  closeEntryForItem,
+  getLog,
 } from "../helpers/LiturgiaTimeTracking.js";
+import {
+  restorePopup,
+  onPopupModuleChanged,
+  openTelao,
+} from "../helpers/LiturgiaPopupRouting.js";
+import LiturgiaFiles from "../helpers/LiturgiaFiles.js";
 
 const TODAY = new Date();
 const WEEK_START = (() => {
@@ -320,6 +203,8 @@ const DAY_COLORS = [
   '#2980b9',
 ];
 
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
 export default {
   name: manifest.id,
 
@@ -328,6 +213,9 @@ export default {
     LiturgiaDayView,
     LiturgiaAddDialog,
     LiturgiaTimeBar,
+    LiturgiaReportDialog,
+    LiturgiaFileConfigDialog,
+    LiturgiaRibbon,
   },
 
   data: () => ({
@@ -343,6 +231,15 @@ export default {
     undoMessage: '',
     _deletedItems: null,
     _deletedDayIndex: null,
+    // Report dialog
+    showReport: false,
+    // Reset confirm
+    resetConfirm: false,
+    // File config dialog
+    showFileConfig: false,
+    // Snackbars
+    copySnack: false,
+    restoredSnackbar: false,
   }),
 
   computed: {
@@ -374,6 +271,14 @@ export default {
       return this.module.show;
     },
 
+    isDark() {
+      return this.$appdata.get('is_dark', false);
+    },
+
+    todayIndex() {
+      return new Date().getDay();
+    },
+
     dayLabels() {
       return [
         this.t('days_full.sun'),
@@ -392,6 +297,15 @@ export default {
       },
       set(val) {
         this.$appdata.set('modules.liturgia.active_day_index', val);
+      },
+    },
+
+    ribbonTab: {
+      get() {
+        return this.$appdata.get('modules.liturgia.ribbon_tab', 'home');
+      },
+      set(val) {
+        this.$appdata.set('modules.liturgia.ribbon_tab', val);
       },
     },
 
@@ -419,13 +333,50 @@ export default {
     plannedStart() {
       return getPlannedStart(this.activeDayIndex);
     },
+
+    nowPlaying() {
+      return this.$appdata.get('modules.liturgia.now_playing', null);
+    },
+
+    // Popup routing
+    mediaVisible() {
+      return this.$appdata.get('modules.media.show', false)
+          || this.$appdata.get('modules.media.minimized', false);
+    },
+
+    popupModule() {
+      return this.$appdata.get('popup_module', '');
+    },
+
+    // Config
+    autoOpenPopup() {
+      return this.$userdata.get('modules.liturgia.config.auto_open_popup', true);
+    },
+  },
+
+  watch: {
+    // Restore popup when media closes (true->false transition)
+    mediaVisible(val, old) {
+      if (old && !val) restorePopup();
+    },
+
+    // Guard: notify routing helper when popup_module changes externally
+    popupModule(val) {
+      onPopupModuleChanged(val);
+    },
   },
 
   created() {
     this.seedIfNeeded();
+    // Initialize setIfNull for auto_open_popup
+    if (this.$userdata.get('modules.liturgia.config.auto_open_popup', null) === null) {
+      this.$userdata.set('modules.liturgia.config.auto_open_popup', true);
+    }
     if (this.$appdata.get('modules.liturgia.active_day_index') == null) {
       this.$appdata.set('modules.liturgia.active_day_index', new Date().getDay());
     }
+    // Always reset ribbon_tab to 'home' on app start
+    this.$appdata.set('modules.liturgia.ribbon_tab', 'home');
   },
 
   methods: {
@@ -579,99 +530,87 @@ export default {
     onPlannedStartChange(val) {
       setPlannedStart(this.activeDayIndex, val);
     },
+
+    stopCurrentItem() {
+      const np = this.nowPlaying;
+      if (!np) return;
+      LiturgiaFiles.stopAudio();
+      closeEntryForItem(this.activeDayIndex, np.item_id);
+      this.$appdata.set('modules.liturgia.now_playing', null);
+    },
+
+    // Report copy/CSV from ribbon
+    async onCopyTsv() {
+      const rows = buildReportRows(this.activeDayIndex);
+      const tsv = toTsv(rows, (k) => this.t(k));
+      try {
+        await navigator.clipboard.writeText(tsv);
+      } catch {
+        const el = document.createElement('textarea');
+        el.value = tsv;
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      this.copySnack = true;
+    },
+
+    onDownloadCsv() {
+      const rows = buildReportRows(this.activeDayIndex);
+      const csv = toCsv(rows, (k) => this.t(k));
+      const dayKey = DAY_KEYS[this.activeDayIndex] || String(this.activeDayIndex);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `liturgia-tempos-${dayKey}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+
+    onResetDay() {
+      this.resetConfirm = true;
+    },
+
+    confirmResetDay() {
+      resetDay(this.activeDayIndex);
+      this.resetConfirm = false;
+    },
+
+    // Config tab
+    toggleAutoOpenPopup(val) {
+      this.$userdata.set('modules.liturgia.config.auto_open_popup', !!val);
+    },
+
+    onRestoreDefaults() {
+      // restoreDefaults() is called inside dialog; this is called from ribbon Padrões
+      // Import restoreDefaults from helper and call it, then show snackbar
+      import('../helpers/LiturgiaFileConfig.js').then(({ restoreDefaults }) => {
+        restoreDefaults();
+        this.restoredSnackbar = true;
+      });
+    },
+
+    // Expose openTelao for ribbon wiring
+    openTelao() {
+      openTelao();
+    },
   },
 };
 </script>
 
 <style scoped>
 .liturgia-day-tabs {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.liturgia-ribbon {
-  background: #f0f0f0;
-  color: #222;
-  width: 100%;
-}
-
-.liturgia-ribbon-tabs {
-  min-height: 28px;
-  height: 28px;
-}
-
-.liturgia-ribbon-tabs :deep(.v-tab) {
-  color: #333 !important;
-  font-size: 11px;
-  min-height: 28px;
-  height: 28px;
-  background: #d0d0d0;
-  border-radius: 4px 4px 0 0;
-  margin-right: 2px;
-  padding: 0 10px;
-}
-
-.liturgia-ribbon-tabs :deep(.v-tab--selected) {
-  background: #f0f0f0;
-  color: #111 !important;
-  border-top: 2px solid #1565c0;
-}
-
-.liturgia-ribbon-groups {
-  background: #f0f0f0;
-  border-bottom: 1px solid #ccc;
-  min-height: 72px;
-}
-
-.liturgia-ribbon-group {
-  padding: 2px 4px;
-  min-width: 60px;
-}
-
-.liturgia-group-caption {
-  font-size: 10px;
-  color: #888;
-  margin-top: 2px;
-  border-top: 1px solid #ddd;
-  width: 100%;
-  padding-top: 2px;
-}
-
-.liturgia-cmd-btn {
-  min-width: 48px !important;
-  height: auto !important;
-  padding: 4px 6px !important;
-}
-
-.liturgia-cmd-btn :deep(.v-btn__content) {
-  flex-direction: column;
-}
-
-.liturgia-options-check {
-  font-size: 11px;
-}
-
-.liturgia-options-check :deep(.v-label) {
-  font-size: 11px;
-  color: #333;
-}
-
-/* Time tracking ribbon group */
-.liturgia-time-switch {
-  margin-top: 0;
-}
-
-.liturgia-time-switch-label {
-  font-size: 10px;
-  color: #555;
-  max-width: 80px;
-  text-align: center;
-  line-height: 1.2;
-  white-space: normal;
-}
-
-.liturgia-time-input :deep(.v-field__input) {
-  font-size: 12px;
-  padding: 2px 6px;
-  min-height: 28px;
+.liturgia-day-tabs :deep(.v-tab) {
+  height: 32px !important;
+  min-height: 32px !important;
+  min-width: 0 !important;
+  padding: 0 12px !important;
+  font-size: 12px !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
 }
 </style>

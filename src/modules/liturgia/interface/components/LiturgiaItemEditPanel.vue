@@ -185,13 +185,15 @@ export default {
 
       LiturgiaFiles.register(this.item.id, file);
 
+      // Use rederiveAndHeal so stale kind/mime/name self-heal and the row chip updates
+      const itemCopy = { ...this.item, file_ref: { ...(this.item.file_ref || {}) } };
+      const healedRef = LiturgiaFiles.rederiveAndHeal(itemCopy, file);
+
       this.$emit("update:item", {
         ...this.item,
         file_ref: {
-          name: file.name,
+          ...healedRef,
           path: file.webkitRelativePath || file.name,
-          kind: LiturgiaFiles.kindFromFile(file),
-          mime: file.type,
         },
       });
     },

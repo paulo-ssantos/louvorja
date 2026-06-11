@@ -1,62 +1,72 @@
 {
   "title": "Liturgia",
-  "days": {
-    "sun": "Dom",
-    "mon": "Seg",
-    "tue": "Ter",
-    "wed": "Qua",
-    "thu": "Qui",
-    "fri": "Sex",
-    "sat": "Sáb"
-  },
-  "days_full": {
-    "sun": "Domingo",
-    "mon": "Segunda",
-    "tue": "Terça",
-    "wed": "Quarta",
-    "thu": "Quinta",
-    "fri": "Sexta",
-    "sat": "Sábado"
-  },
+  "days": { "sun": "Dom", "mon": "Seg", "tue": "Ter", "wed": "Qua", "thu": "Qui", "fri": "Sex", "sat": "Sáb" },
+  "days_full": { "sun": "Domingo", "mon": "Segunda", "tue": "Terça", "wed": "Quarta", "thu": "Quinta", "fri": "Sexta", "sat": "Sábado" },
   "ribbon": {
     "tab": "Configure Liturgia",
+    "tab_home": "Configurar",
+    "tab_time": "Tempos",
+    "tab_config": "Configurações",
     "group_add": "Adicionar",
-    "group_item": "Item",
+    "group_item": "Itens",
     "group_options": "Opções",
     "group_time": "Tempos",
-    "group_backup": "Backup"
+    "group_backup": "Backup",
+    "group_telao": "Telão",
+    "group_registro": "Registro",
+    "group_current_item": "Item atual",
+    "group_session": "Sessão",
+    "group_report": "Relatório",
+    "group_files": "Arquivos",
+    "group_projection": "Projeção",
+    "group_defaults": "Padrões"
   },
-  "bulk": {
-    "mark_all": "Marcar Todos",
-    "deselect_all": "Desmarcar Todos",
-    "invert": "Inverter Seleção",
-    "delete_selected": "Apagar Selecionados"
-  },
+  "bulk": { "mark_all": "Marcar Todos", "deselect_all": "Desmarcar Todos", "invert": "Inverter Seleção", "delete_selected": "Apagar Selecionados" },
   "options": {
     "auto_mark": "Marcar como Concluído após acessar o item",
-    "show_notes": "Exibir Painel de Anotações"
+    "show_notes": "Exibir Painel de Anotações",
+    "auto_mark_short": "Concluir ao acessar o item",
+    "show_notes_short": "Painel de anotações"
   },
-  "backup": {
-    "export": "Exportar",
-    "import": "Importar"
+  "backup": { "export": "Exportar", "import": "Importar" },
+  "import": { "confirm_overwrite": "Importar este backup substituirá toda a liturgia atual. Deseja continuar?", "invalid": "Arquivo .lj inválido.", "confirm_btn": "Substituir", "cancel_btn": "Cancelar" },
+  "telao": { "label": "Telão", "tooltip": "Abrir/focar o telão (projetor)", "open": "Telão aberto", "closed": "Telão fechado" },
+  "routing": {
+    "popup_blocked": "Popup bloqueado — permita popups para usar o telão.",
+    "popup_hint": "O telão não está aberto. Abra o telão para projetar.",
+    "open_telao": "Abrir telão"
   },
-  "import": {
-    "confirm_overwrite": "Importar este backup substituirá toda a liturgia atual. Deseja continuar?",
-    "invalid": "Arquivo .lj inválido.",
-    "confirm_btn": "Substituir",
-    "cancel_btn": "Cancelar"
+  "config": {
+    "file_types": "Tipos de Arquivo",
+    "auto_open_popup": "Abrir projetor automaticamente",
+    "open_popup_now": "Abrir projetor agora",
+    "restore_defaults": "Restaurar padrões",
+    "restored": "Padrões restaurados",
+    "behaviors": "Comportamentos",
+    "dialog_title": "Abrir arquivos",
+    "col_type": "Tipo",
+    "col_handler": "Como abrir",
+    "document_note": "Apresentações do PowerPoint não podem ser exibidas pelo navegador; o padrão é baixar o arquivo.",
+    "kind_video": "Vídeo",
+    "kind_audio": "Áudio",
+    "kind_image": "Imagem",
+    "kind_pdf": "PDF",
+    "kind_text": "Texto",
+    "kind_document": "Documentos (PPTX, DOCX...)",
+    "handler_popup": "Apresentar no telão",
+    "handler_hidden": "Áudio oculto",
+    "handler_tab": "Abrir em nova aba",
+    "handler_download": "Baixar arquivo"
   },
+  "download_done": "«{name}» baixado",
+  "download_done_doc": "«{name}» baixado — abra no aplicativo apropriado (ex.: PowerPoint)",
   "add_item": "Adicionar Item",
   "add_music": "Música",
   "add_file": "Arquivo ou diretório",
   "add_category": "Categoria",
   "browse": "Procurar",
   "execute": "Executar",
-  "playback": {
-    "sung": "Cantado",
-    "playback": "Playback",
-    "none": "Sem áudio"
-  },
+  "playback": { "sung": "Cantado", "playback": "Playback", "none": "Sem áudio" },
   "no_items": "Nenhum item. Clique em \"Adicionar Item\" para começar.",
   "notes_label": "Anotações",
   "auto_mark_label": "Marcar como Concluído após acessar o item",
@@ -80,12 +90,8 @@
   "reattach_hint": "Arquivo não anexado. Clique para reanexar.",
   "reattach_chip": "Reanexar",
   "repick_file": "Re-selecionar arquivo",
-  "add": {
-    "mode_hint": "O modo de execução (Cantado/Playback/Sem áudio) é escolhido na hora de tocar."
-  },
-  "row": {
-    "click_to_execute": "Clique para executar (Cantado)"
-  },
+  "add": { "mode_hint": "O modo de execução (Cantado/Playback/Sem áudio) é escolhido na hora de tocar." },
+  "row": { "click_to_execute": "Clique para executar (Cantado)", "stop": "Parar" },
   "strip": {
     "slide_sung": "Slide cantado",
     "slide_playback": "Slide playback",
@@ -95,11 +101,14 @@
     "lyric": "Letra",
     "playback_unavailable": "Playback indisponível para esta música"
   },
-  "executing": "Executando",
-  "undo": {
-    "deleted": "{n} itens removidos",
-    "action": "Desfazer"
+  "handler_hint": {
+    "popup": "Apresentar no telão",
+    "tab": "Abrir em nova aba",
+    "download": "Baixar arquivo",
+    "hidden_audio": "Áudio oculto"
   },
+  "executing": "Executando",
+  "undo": { "deleted": "{n} itens removidos", "action": "Desfazer" },
   "time": {
     "enable_label": "Registrar tempos do culto",
     "enable_tooltip": "Registra horários de início/fim de cada item e mostra se o culto está adiantado ou atrasado",
@@ -112,6 +121,8 @@
     "bar_waiting": "Aguardando início",
     "total_elapsed": "Total",
     "stop_item": "Encerrar item",
+    "no_open_item": "Nenhum item em andamento",
+    "real_start": "Início real {time}",
     "status_late": "Atrasado {n} min",
     "status_early": "Adiantado {n} min",
     "status_ontime": "No horário",
