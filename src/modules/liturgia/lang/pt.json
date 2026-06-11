@@ -1,0 +1,80 @@
+{
+  "title": "Liturgia",
+  "days": {
+    "sun": "Dom",
+    "mon": "Seg",
+    "tue": "Ter",
+    "wed": "Qua",
+    "thu": "Qui",
+    "fri": "Sex",
+    "sat": "Sáb"
+  },
+  "days_full": {
+    "sun": "Domingo",
+    "mon": "Segunda",
+    "tue": "Terça",
+    "wed": "Quarta",
+    "thu": "Quinta",
+    "fri": "Sexta",
+    "sat": "Sábado"
+  },
+  "ribbon": {
+    "tab": "Configure Liturgia",
+    "group_add": "Adicionar",
+    "group_item": "Item",
+    "group_options": "Opções",
+    "group_backup": "Backup"
+  },
+  "bulk": {
+    "mark_all": "Marcar Todos",
+    "deselect_all": "Desmarcar Todos",
+    "invert": "Inverter Seleção",
+    "delete_selected": "Apagar Selecionados"
+  },
+  "options": {
+    "auto_mark": "Marcar como Concluído após acessar o item",
+    "show_notes": "Exibir Painel de Anotações"
+  },
+  "backup": {
+    "export": "Exportar",
+    "import": "Importar"
+  },
+  "import": {
+    "confirm_overwrite": "Importar este backup substituirá toda a liturgia atual. Deseja continuar?",
+    "invalid": "Arquivo .lj inválido.",
+    "confirm_btn": "Substituir",
+    "cancel_btn": "Cancelar"
+  },
+  "add_item": "Adicionar Item",
+  "add_music": "Música",
+  "add_file": "Arquivo ou diretório",
+  "add_category": "Categoria",
+  "browse": "Procurar",
+  "execute": "Executar",
+  "playback": {
+    "sung": "Cantado",
+    "playback": "Playback",
+    "none": "Sem áudio"
+  },
+  "no_items": "Nenhum item. Clique em \"Adicionar Item\" para começar.",
+  "notes_label": "Anotações",
+  "auto_mark_label": "Marcar como Concluído após acessar o item",
+  "delete_item": "Remover",
+  "edit_item": "Editar",
+  "song_search_placeholder": "Buscar música...",
+  "display_name_label": "Nome exibido",
+  "color_label": "Cor",
+  "playback_mode_label": "Modo de áudio",
+  "category_name_label": "Nome da categoria",
+  "add_btn": "Adicionar",
+  "cancel_btn": "Cancelar",
+  "search_song_label": "Buscar outra música",
+  "hymnal_new": "Novo",
+  "hymnal_old": "Antigo",
+  "hinario_adventista": "Hinário Adventista",
+  "hinario_other": "Hinário Antigo",
+  "no_results": "Nenhum resultado.",
+  "file_prefix": "Arquivo",
+  "reattach_hint": "Arquivo não anexado. Clique para reanexar.",
+  "repick_file": "Re-selecionar arquivo"
+}

@@ -30,6 +30,12 @@ export default {
     this.save();
   },
 
+  setDebounced(param, value, delayMs = 500) {
+    $appdata.set(`user_data.${param}`, value);
+    clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => this.save(), delayMs);
+  },
+
   setIfNull(param, value) {
     $dev.write("set userdata", { param, value });
     if (

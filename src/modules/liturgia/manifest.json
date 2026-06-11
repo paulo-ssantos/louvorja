@@ -1,0 +1,8 @@
+{
+  "id": "liturgia",
+  "name": "Liturgia",
+  "description": "Agenda semanal do culto",
+  "category": "musics",
+  "icon": "mdi-playlist-play",
+  "showInMainMenu": true
+}

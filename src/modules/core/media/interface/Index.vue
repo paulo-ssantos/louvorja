@@ -213,8 +213,15 @@ export default {
         this.$userdata.set("modules.media.fade_audio", value);
       },
     },
+    liturgia_audio_trigger() {
+      return this.$appdata.get('modules.liturgia.audio_trigger', null)
+    },
   },
   watch: {
+    liturgia_audio_trigger(trigger) {
+      if (!trigger || !trigger.song_id) return
+      this.$media.open({ id_music: trigger.song_id, mode: trigger.mode || 'audio', minimized: true })
+    },
     slide_index() {
       if (!this.module.show) {
         return;
