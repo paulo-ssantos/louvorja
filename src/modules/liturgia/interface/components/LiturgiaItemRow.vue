@@ -17,26 +17,28 @@
         {{ item.display_name || '(sem nome)' }}
       </div>
 
-      <!-- Yellow edit pencil -->
+      <!-- Pencil (theme-aware) -->
       <v-btn
         icon
-        size="x-small"
+        size="34"
         variant="text"
-        color="#f1c40f"
+        :color="$vuetify.theme.current.dark ? '#f1c40f' : '#c49000'"
         :title="$t('modules.liturgia.edit_item')"
         @click.stop="$emit('edit-toggle', item.id)"
       >
-        <v-icon size="16">mdi-pencil</v-icon>
+        <v-icon size="18">mdi-pencil</v-icon>
       </v-btn>
 
-      <!-- Black drag handle -->
-      <v-icon
-        size="18"
+      <!-- Drag handle -->
+      <v-btn
+        icon
+        size="34"
+        variant="text"
         class="liturgia-drag-handle ml-1"
-        style="cursor: grab; color: #111;"
+        style="cursor: grab;"
       >
-        mdi-drag-vertical
-      </v-icon>
+        <v-icon size="18">mdi-drag-vertical</v-icon>
+      </v-btn>
     </div>
 
     <!-- ========== NORMAL ROW (music / file) ========== -->
@@ -44,6 +46,7 @@
       v-else
       class="liturgia-item-row d-flex align-center"
       :class="{ 'liturgia-item-row--completed': completed }"
+      :style="rowStyle"
       style="min-height: 52px; cursor: pointer; background: #fff; border-bottom: 1px solid rgba(0,0,0,0.07);"
       @click="$emit('execute', { item, mode: null })"
     >
@@ -58,24 +61,52 @@
         @update:model-value="toggleSelect"
       />
 
-      <!-- (b) Colored type-icon block + re-attach amber alert -->
+      <!-- (b) Colored type-icon block with hover overlay + re-attach amber alert -->
       <div
-        class="d-flex align-center justify-center flex-shrink-0 mr-2"
+        class="d-flex align-center justify-center flex-shrink-0 mr-2 liturgia-icon-block-wrap"
         style="position: relative;"
       >
+        <!-- Now-playing CSS equalizer OR normal icon -->
         <div
           :style="{
-            width: '28px',
-            height: '28px',
+            width: '32px',
+            height: '32px',
             borderRadius: '6px',
             backgroundColor: item.color || '#1a3a5c',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
+            position: 'relative',
           }"
+          class="liturgia-icon-block"
         >
-          <v-icon size="16" color="white">{{ typeIcon }}</v-icon>
+          <!-- CSS equalizer (now-playing) -->
+          <div v-if="isNowPlaying" class="liturgia-eq" :class="{ 'liturgia-eq--paused': isPaused }">
+            <span class="liturgia-eq__bar liturgia-eq__bar--1"></span>
+            <span class="liturgia-eq__bar liturgia-eq__bar--2"></span>
+            <span class="liturgia-eq__bar liturgia-eq__bar--3"></span>
+          </div>
+          <!-- Normal icon -->
+          <v-icon v-else size="18" color="white">{{ typeIcon }}</v-icon>
+
+          <!-- Hover play overlay (UX) -->
+          <v-tooltip :text="$t('modules.liturgia.row.click_to_execute')" location="top" :open-delay="700">
+            <template v-slot:activator="{ props: tipProps }">
+              <div
+                v-bind="tipProps"
+                class="liturgia-icon-block-hover"
+                style="
+                  position: absolute; inset: 0; display: flex; align-items: center;
+                  justify-content: center; border-radius: 6px;
+                  background: rgba(255,255,255,0.18); opacity: 0; transition: opacity 0.15s;
+                  pointer-events: none;
+                "
+              >
+                <v-icon size="16" color="white">mdi-play</v-icon>
+              </div>
+            </template>
+          </v-tooltip>
         </div>
 
         <!-- Re-attach hint (file only, no live handle) -->
@@ -101,64 +132,173 @@
         </div>
         <div
           v-if="subtitle"
-          class="text-caption text-medium-emphasis text-truncate"
+          class="text-caption text-medium-emphasis text-truncate d-flex align-center"
           style="font-size: 11px; line-height: 1.2;"
         >
-          {{ subtitle }}
+          <span>{{ subtitle }}</span>
+          <!-- F4: planned duration chip -->
+          <v-chip
+            v-if="item.planned_duration && timeTrackingEnabled"
+            x-small
+            size="x-small"
+            color="grey"
+            variant="tonal"
+            class="ml-1"
+            style="height: 16px; font-size: 10px;"
+          >
+            {{ $t('modules.liturgia.time.minutes_chip', { n: item.planned_duration }) }}
+          </v-chip>
         </div>
       </div>
 
-      <!-- (e) Music quick-action icons (music only) -->
+      <!-- (e) Music strip (music only) — new 4-button strip -->
       <template v-if="item.type === 'music'">
-        <v-btn
-          icon
-          size="x-small"
-          variant="text"
-          :title="$t('modules.liturgia.playback.sung')"
-          @click.stop="emitExec('sung')"
+        <!-- (1) Slide cantado -->
+        <v-tooltip :text="$t('modules.liturgia.strip.slide_sung')" location="top" :open-delay="400">
+          <template v-slot:activator="{ props: tipProps }">
+            <v-btn
+              v-bind="tipProps"
+              icon
+              size="34"
+              variant="text"
+              :color="isNowPlaying && nowPlayingMode === 'sung' ? 'primary' : undefined"
+              :style="isNowPlaying && nowPlayingMode !== 'sung' ? 'opacity:0.6' : ''"
+              @click.stop="emitExec('sung')"
+            >
+              <v-icon size="20">mdi-play-box-multiple</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
+
+        <!-- (2) Slide playback -->
+        <v-tooltip
+          :text="hasInstrumental === false
+            ? $t('modules.liturgia.strip.playback_unavailable')
+            : $t('modules.liturgia.strip.slide_playback')"
+          location="top"
+          :open-delay="400"
         >
-          <v-icon size="16">mdi-microphone</v-icon>
-        </v-btn>
-        <v-btn
-          icon
-          size="x-small"
-          variant="text"
-          :title="$t('modules.liturgia.playback.playback')"
-          @click.stop="emitExec('playback')"
-        >
-          <v-icon size="16">mdi-play-box-outline</v-icon>
-        </v-btn>
-        <v-btn
-          icon
-          size="x-small"
-          variant="text"
-          :title="$t('modules.liturgia.playback.none')"
-          @click.stop="emitExec('none')"
-        >
-          <v-icon size="16">mdi-volume-off</v-icon>
-        </v-btn>
+          <template v-slot:activator="{ props: tipProps }">
+            <span v-bind="tipProps">
+              <v-btn
+                icon
+                size="34"
+                variant="text"
+                :disabled="hasInstrumental === false"
+                :color="isNowPlaying && nowPlayingMode === 'playback' ? 'primary' : undefined"
+                :style="isNowPlaying && nowPlayingMode !== 'playback' ? 'opacity:0.6' : ''"
+                @click.stop="emitExec('playback')"
+              >
+                <v-icon size="20">mdi-play-box-multiple-outline</v-icon>
+              </v-btn>
+            </span>
+          </template>
+        </v-tooltip>
+
+        <!-- (3) Slide sem áudio -->
+        <v-tooltip :text="$t('modules.liturgia.strip.slide_none')" location="top" :open-delay="400">
+          <template v-slot:activator="{ props: tipProps }">
+            <v-btn
+              v-bind="tipProps"
+              icon
+              size="34"
+              variant="text"
+              :color="isNowPlaying && nowPlayingMode === 'none' ? 'primary' : undefined"
+              :style="isNowPlaying && nowPlayingMode !== 'none' ? 'opacity:0.6' : ''"
+              @click.stop="emitExec('none')"
+            >
+              <v-icon size="20">mdi-checkbox-multiple-blank-outline</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
+
+        <!-- (4) Overflow menu -->
+        <v-menu location="start" :close-on-content-click="true">
+          <template v-slot:activator="{ props: menuProps }">
+            <v-tooltip :text="''" location="top" :open-delay="400">
+              <template v-slot:activator="{ props: tipProps }">
+                <v-btn
+                  v-bind="{ ...menuProps, ...tipProps }"
+                  icon
+                  size="34"
+                  variant="text"
+                  @click.stop
+                >
+                  <v-icon size="20">mdi-dots-vertical</v-icon>
+                </v-btn>
+              </template>
+            </v-tooltip>
+          </template>
+          <v-list density="compact">
+            <!-- Audio only sung -->
+            <v-list-item
+              :title="$t('modules.liturgia.strip.audio_only_sung')"
+              prepend-icon="mdi-file-music"
+              @click.stop="$emit('audio-only', { item, mode: 'sung' })"
+            />
+            <!-- Audio only playback -->
+            <v-list-item
+              :title="$t('modules.liturgia.strip.audio_only_playback')"
+              prepend-icon="mdi-file-music-outline"
+              :disabled="hasInstrumental === false"
+              @click.stop="$emit('audio-only', { item, mode: 'playback' })"
+            />
+            <!-- Letra -->
+            <v-list-item
+              :title="$t('modules.liturgia.strip.lyric')"
+              prepend-icon="mdi-text-box-outline"
+              @click.stop="$emit('lyric', { item })"
+            />
+          </v-list>
+        </v-menu>
       </template>
 
-      <!-- (f) Yellow edit pencil -->
+      <!-- File row: single Executar button -->
+      <template v-if="item.type === 'file'">
+        <v-tooltip :text="$t('modules.liturgia.execute')" location="top" :open-delay="400">
+          <template v-slot:activator="{ props: tipProps }">
+            <v-btn
+              v-bind="tipProps"
+              icon
+              size="34"
+              variant="text"
+              @click.stop="$emit('execute', { item, mode: null })"
+            >
+              <v-icon size="20">mdi-play</v-icon>
+            </v-btn>
+          </template>
+        </v-tooltip>
+      </template>
+
+      <!-- Vertical divider before edit/drag -->
+      <v-divider vertical class="mx-1" style="height: 24px; align-self: center;" />
+
+      <!-- (f) Pencil (theme-aware) -->
+      <v-tooltip :text="$t('modules.liturgia.edit_item')" location="top" :open-delay="400">
+        <template v-slot:activator="{ props: tipProps }">
+          <v-btn
+            v-bind="tipProps"
+            icon
+            size="34"
+            variant="text"
+            :color="$vuetify.theme.current.dark ? '#f1c40f' : '#c49000'"
+            @click.stop="$emit('edit-toggle', item.id)"
+          >
+            <v-icon size="18">mdi-pencil</v-icon>
+          </v-btn>
+        </template>
+      </v-tooltip>
+
+      <!-- (g) Drag handle -->
       <v-btn
         icon
-        size="x-small"
+        size="34"
         variant="text"
-        color="#f1c40f"
-        :title="$t('modules.liturgia.edit_item')"
-        @click.stop="$emit('edit-toggle', item.id)"
-      >
-        <v-icon size="16">mdi-pencil</v-icon>
-      </v-btn>
-
-      <!-- (g) Black drag handle -->
-      <v-icon
-        size="18"
         class="liturgia-drag-handle ml-1 mr-1 flex-shrink-0"
-        style="cursor: grab; color: #111;"
+        style="cursor: grab;"
       >
-        mdi-drag-vertical
-      </v-icon>
+        <v-icon size="18">mdi-drag-vertical</v-icon>
+      </v-btn>
     </div>
 
     <!-- Inline edit panel -->
@@ -166,6 +306,7 @@
       :item="item"
       :visible="editOpen"
       @update:item="$emit('update:item', $event)"
+      @close="$emit('edit-toggle', item.id)"
     />
   </div>
 </template>
@@ -194,7 +335,7 @@ export default {
     },
   },
 
-  emits: ["execute", "delete", "edit-toggle", "update:item"],
+  emits: ["execute", "audio-only", "lyric", "delete", "edit-toggle", "update:item"],
 
   computed: {
     completed() {
@@ -208,6 +349,37 @@ export default {
 
     needsReattach() {
       return this.item.type === "file" && !LiturgiaFiles.has(this.item.id);
+    },
+
+    // F7: now-playing reactive state
+    nowPlaying() {
+      return this.$appdata.get("modules.liturgia.now_playing", null);
+    },
+
+    isNowPlaying() {
+      const np = this.nowPlaying;
+      return np && np.day_index === this.dayIndex && np.item_id === this.item.id;
+    },
+
+    nowPlayingMode() {
+      return this.isNowPlaying ? this.nowPlaying.mode : null;
+    },
+
+    isPaused() {
+      return this.$appdata.get("modules.media.config.is_paused", false);
+    },
+
+    // F4: time tracking enabled
+    timeTrackingEnabled() {
+      return this.$userdata.get("modules.liturgia.time_tracking.enabled", false);
+    },
+
+    // F3: has_instrumental check
+    hasInstrumental() {
+      const v = this.item.music_ref?.has_instrumental;
+      // undefined/null = unknown = treated as available (backward compat)
+      if (v === false) return false;
+      return true;
     },
 
     typeIcon() {
@@ -240,6 +412,28 @@ export default {
       }
       return "";
     },
+
+    // F7: left border + background tint when now-playing
+    rowStyle() {
+      if (!this.isNowPlaying) return {};
+      const color = this.item.color || "#1a3a5c";
+      return {
+        borderLeft: `3px solid ${color}`,
+        background: "rgba(var(--v-theme-primary), 0.06)",
+      };
+    },
+  },
+
+  watch: {
+    // F7/3.5: self-scroll when this row becomes now-playing
+    isNowPlaying(val) {
+      if (val) {
+        this.$nextTick(() => {
+          const el = this.$el.querySelector(".liturgia-item-row");
+          if (el) el.scrollIntoView({ block: "nearest" });
+        });
+      }
+    },
   },
 
   methods: {
@@ -261,5 +455,49 @@ export default {
 <style scoped>
 .liturgia-item-row--completed {
   opacity: 0.5;
+}
+
+/* Hover: show the overlay on the icon block */
+.liturgia-item-row:hover .liturgia-icon-block .liturgia-icon-block-hover {
+  opacity: 1 !important;
+}
+
+/* CSS equalizer animation */
+.liturgia-eq {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  height: 18px;
+}
+
+.liturgia-eq__bar {
+  display: block;
+  width: 3px;
+  background: #fff;
+  border-radius: 1px;
+  animation: liturgia-eq-bounce 900ms ease-in-out infinite;
+}
+
+.liturgia-eq__bar--1 {
+  height: 6px;
+  animation-delay: 0ms;
+}
+.liturgia-eq__bar--2 {
+  height: 14px;
+  animation-delay: 150ms;
+}
+.liturgia-eq__bar--3 {
+  height: 10px;
+  animation-delay: 300ms;
+}
+
+.liturgia-eq--paused .liturgia-eq__bar {
+  animation-play-state: paused;
+}
+
+@keyframes liturgia-eq-bounce {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.4); }
 }
 </style>

@@ -37,16 +37,10 @@
               </v-chip>
             </div>
 
-            <v-select
-              v-model="playbackMode"
-              :label="$t('modules.liturgia.playback_mode_label')"
-              :items="playbackModes"
-              item-value="value"
-              item-title="title"
-              density="compact"
-              hide-details
-              variant="outlined"
-            />
+            <!-- F2: Mode hint caption (replaces mode v-select) -->
+            <div class="text-caption text-medium-emphasis mt-1">
+              {{ $t('modules.liturgia.add.mode_hint') }}
+            </div>
           </v-window-item>
 
           <!-- File tab -->
@@ -96,7 +90,30 @@
               hide-details
               variant="outlined"
               autofocus
+              class="mb-3"
             />
+
+            <!-- UX: Color swatches for category -->
+            <div>
+              <div class="text-caption text-medium-emphasis mb-1">{{ $t('modules.liturgia.color_label') }}</div>
+              <div class="d-flex flex-wrap ga-1">
+                <div
+                  v-for="color in LITURGIA_COLORS"
+                  :key="color"
+                  :style="{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '4px',
+                    backgroundColor: color,
+                    cursor: 'pointer',
+                    border: categoryColor === color
+                      ? '2px solid rgb(var(--v-theme-primary))'
+                      : '2px solid transparent',
+                  }"
+                  @click="categoryColor = color"
+                />
+              </div>
+            </div>
           </v-window-item>
         </v-window>
       </v-card-text>
@@ -123,6 +140,7 @@
 import { uuid } from "@/helpers/Uuid";
 import LiturgiaSongSearch from "@/components/LiturgiaSongSearch.vue";
 import LiturgiaFiles from "@/modules/liturgia/helpers/LiturgiaFiles";
+import { LITURGIA_COLORS } from "@/constants/liturgia-colors";
 
 export default {
   name: "LiturgiaAddDialog",
@@ -141,10 +159,11 @@ export default {
   data: () => ({
     tab: "music",
     selectedSong: null,
-    playbackMode: "sung",
     categoryName: "",
+    categoryColor: "#1a3a5c",
     fileName: "",
     pickedFile: null,
+    LITURGIA_COLORS,
   }),
 
   computed: {
@@ -155,14 +174,6 @@ export default {
       set(val) {
         this.$emit("update:modelValue", val);
       },
-    },
-
-    playbackModes() {
-      return [
-        { value: "sung", title: this.$t("modules.liturgia.playback.sung") },
-        { value: "playback", title: this.$t("modules.liturgia.playback.playback") },
-        { value: "none", title: this.$t("modules.liturgia.playback.none") },
-      ];
     },
 
     canAdd() {
@@ -184,8 +195,8 @@ export default {
     reset() {
       this.tab = "music";
       this.selectedSong = null;
-      this.playbackMode = "sung";
       this.categoryName = "";
+      this.categoryColor = "#1a3a5c";
       this.fileName = "";
       this.pickedFile = null;
     },
@@ -204,27 +215,36 @@ export default {
     confirm() {
       if (!this.canAdd) return;
 
-      const color = '#1a3a5c';
+      const defaultColor = "#1a3a5c";
 
       let item;
       if (this.tab === "music") {
+        // F3: set has_instrumental from the song record when available
+        const song = this.selectedSong;
+        let hasInstrumental;
+        if (song.url_instrumental_music) {
+          hasInstrumental = true;
+        } else if (song.has_instrumental_music !== undefined) {
+          hasInstrumental = !!song.has_instrumental_music;
+        } else {
+          hasInstrumental = undefined; // unknown — backward compat
+        }
+
         item = {
           id: uuid(),
           type: "music",
-          display_name: this.selectedSong.name || this.selectedSong.title || "",
-          color,
+          display_name: song.name || song.title || "",
+          color: defaultColor,
           order: 0,
           music_ref: {
-            // pt_musics and hymnal records both use id_music as the primary key.
-            song_id: this.selectedSong.id_music,
-            // id_album: hymnal records have no album; pt_musics albums are a
-            // nested array, not a top-level field. Pass null — Presenter uses
-            // song_id alone to load music_${id_music} from the database.
+            song_id: song.id_music,
             id_album: null,
-            // Hymn number lives in `track` on hymnal records; null for pt_musics.
-            song_number: this.selectedSong.track ?? null,
-            hymnal_type: this.selectedSong.hymnal_type || null,
-            playback_mode: this.playbackMode,
+            song_number: song.track ?? null,
+            hymnal_type: song.hymnal_type || null,
+            // F2: always 'sung' — mode chosen at execution, not here
+            playback_mode: "sung",
+            // F3: has_instrumental (undefined = unknown = available)
+            ...(hasInstrumental !== undefined ? { has_instrumental: hasInstrumental } : {}),
           },
           file_ref: null,
         };
@@ -234,7 +254,7 @@ export default {
           id,
           type: "file",
           display_name: this.fileName || this.pickedFile.name,
-          color,
+          color: defaultColor,
           order: 0,
           music_ref: null,
           file_ref: {
@@ -250,7 +270,7 @@ export default {
           id: uuid(),
           type: "category",
           display_name: this.categoryName.trim(),
-          color,
+          color: this.categoryColor,
           order: 0,
           music_ref: null,
           file_ref: null,

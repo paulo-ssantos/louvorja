@@ -23,6 +23,7 @@
     "group_add": "Adicionar",
     "group_item": "Item",
     "group_options": "Opções",
+    "group_time": "Tempos",
     "group_backup": "Backup"
   },
   "bulk": {
@@ -68,6 +69,7 @@
   "category_name_label": "Nome da categoria",
   "add_btn": "Adicionar",
   "cancel_btn": "Cancelar",
+  "done_btn": "Concluir",
   "search_song_label": "Buscar outra música",
   "hymnal_new": "Novo",
   "hymnal_old": "Antigo",
@@ -76,5 +78,61 @@
   "no_results": "Nenhum resultado.",
   "file_prefix": "Arquivo",
   "reattach_hint": "Arquivo não anexado. Clique para reanexar.",
-  "repick_file": "Re-selecionar arquivo"
+  "reattach_chip": "Reanexar",
+  "repick_file": "Re-selecionar arquivo",
+  "add": {
+    "mode_hint": "O modo de execução (Cantado/Playback/Sem áudio) é escolhido na hora de tocar."
+  },
+  "row": {
+    "click_to_execute": "Clique para executar (Cantado)"
+  },
+  "strip": {
+    "slide_sung": "Slide cantado",
+    "slide_playback": "Slide playback",
+    "slide_none": "Slide sem áudio",
+    "audio_only_sung": "Somente áudio (cantado)",
+    "audio_only_playback": "Somente playback",
+    "lyric": "Letra",
+    "playback_unavailable": "Playback indisponível para esta música"
+  },
+  "executing": "Executando",
+  "undo": {
+    "deleted": "{n} itens removidos",
+    "action": "Desfazer"
+  },
+  "time": {
+    "enable_label": "Registrar tempos do culto",
+    "enable_tooltip": "Registra horários de início/fim de cada item e mostra se o culto está adiantado ou atrasado",
+    "planned_start_label": "Início previsto",
+    "planned_duration_label": "Duração prevista (min)",
+    "minutes_chip": "{n} min",
+    "report_btn": "Relatório",
+    "reset_btn": "Reiniciar registro",
+    "reset_confirm": "Apagar todos os tempos registrados deste dia?",
+    "bar_waiting": "Aguardando início",
+    "total_elapsed": "Total",
+    "stop_item": "Encerrar item",
+    "status_late": "Atrasado {n} min",
+    "status_early": "Adiantado {n} min",
+    "status_ontime": "No horário",
+    "status_no_plan": "Sem planejamento",
+    "report_title": "Relatório de tempos",
+    "col_order": "#",
+    "col_item": "Item",
+    "col_type": "Tipo",
+    "col_start": "Início",
+    "col_end": "Fim",
+    "col_duration": "Duração real",
+    "col_planned": "Prevista",
+    "col_desvio": "Desvio",
+    "in_progress": "em andamento",
+    "report_header": "Início previsto {planned} / Início real {actual} ({delta})",
+    "report_footer": "{executed} de {total} itens do dia executados",
+    "report_empty": "Nenhum tempo registrado neste dia.",
+    "copy_btn": "Copiar",
+    "download_csv_btn": "Baixar CSV",
+    "close_btn": "Fechar",
+    "totals_label": "Total",
+    "close_open_entry": "Encerrar item em andamento"
+  }
 }

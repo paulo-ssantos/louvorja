@@ -34,6 +34,8 @@
             :day-index="dayIndex"
             :edit-open="editOpenId === element.id"
             @execute="executeItem($event)"
+            @audio-only="onAudioOnly($event)"
+            @lyric="onLyric($event)"
             @delete="deleteItem(element.id)"
             @edit-toggle="toggleEdit(element.id)"
             @update:item="updateItem($event)"
@@ -65,6 +67,16 @@
       />
     </div>
 
+    <!-- Execute snackbar (F7/UX) -->
+    <v-snackbar
+      v-model="execSnackbar"
+      :timeout="2000"
+      location="bottom"
+      color="primary"
+    >
+      {{ execSnackbarText }}
+    </v-snackbar>
+
   </div>
 </template>
 
@@ -72,6 +84,20 @@
 import draggable from "vuedraggable";
 import LiturgiaItemRow from "./LiturgiaItemRow.vue";
 import LiturgiaFiles from "@/modules/liturgia/helpers/LiturgiaFiles";
+
+// LiturgiaTimeTracking is owned by Engineer A. Import defensively —
+// if the file doesn't exist yet (before A merges), the module resolves
+// to a no-op stub so all B's calls are safe.
+let LiturgiaTimeTracking;
+try {
+  LiturgiaTimeTracking = require("@/modules/liturgia/helpers/LiturgiaTimeTracking").default;
+} catch (_) {
+  LiturgiaTimeTracking = {
+    isEnabled: () => false,
+    recordExecution: () => {},
+    closeEntryForItem: () => {},
+  };
+}
 
 export default {
   name: "LiturgiaDayView",
@@ -89,6 +115,9 @@ export default {
     editOpenId: null,
     // Holds the item pending re-attach so onReattachPicked knows which item to execute
     _pendingReattachItem: null,
+    // Execute snackbar
+    execSnackbar: false,
+    execSnackbarText: "",
   }),
 
   computed: {
@@ -111,15 +140,48 @@ export default {
     notePanelOpen() {
       return this.$appdata.get("modules.liturgia.note_panel_open", false);
     },
+
+    // Finding 4: true while the media mini-player is shown or minimized
+    mediaVisible() {
+      return (
+        this.$appdata.get("modules.media.show", false) ||
+        this.$appdata.get("modules.media.minimized", false)
+      );
+    },
+  },
+
+  watch: {
+    // Finding 4: auto-clear now_playing when the media mini-player is fully closed
+    mediaVisible(val) {
+      if (!val && this.$appdata.get("modules.liturgia.now_playing") !== null) {
+        this.$appdata.set("modules.liturgia.now_playing", null);
+      }
+    },
   },
 
   methods: {
+    // ── Playback mode label for snackbar ──────────────────────────────────
+    _modeLabel(eff) {
+      const key = eff === "sung" ? "playback.sung" : eff === "playback" ? "playback.playback" : "playback.none";
+      return this.$t(`modules.liturgia.${key}`);
+    },
+
+    // ── Show execute snackbar ─────────────────────────────────────────────
+    _showExecSnackbar(item, eff) {
+      this.execSnackbarText = `${this.$t("modules.liturgia.executing")}: ${item.display_name} (${this._modeLabel(eff)})`;
+      this.execSnackbar = false;
+      this.$nextTick(() => { this.execSnackbar = true; });
+    },
+
+    // ── executeItem ───────────────────────────────────────────────────────
     async executeItem(payload) {
       const item = payload.item;
       const mode = payload.mode;
 
       if (item.type === "music") {
-        const eff = mode || item.music_ref?.playback_mode || "sung";
+        // F2: always coerce to 'sung'; ignore stored playback_mode
+        const eff = mode || "sung";
+        const liturgia_index = Date.now();
 
         this.$appdata.set("modules.liturgia.active_item", {
           type: "song",
@@ -127,20 +189,38 @@ export default {
           id_album: item.music_ref?.id_album ?? null,
           playback_mode: eff,
           display_name: item.display_name,
-          liturgia_index: Date.now(),
+          liturgia_index,
           media_url: null,
           media_type: null,
           timer_duration: null,
           timer_label: null,
         });
 
+        // F1/F3: map domain → Media-native vocabulary; omit trigger for 'none'
         if (eff !== "none") {
           this.$appdata.set("modules.liturgia.audio_trigger", null);
           this.$appdata.set("modules.liturgia.audio_trigger", {
             song_id: item.music_ref.song_id,
-            mode: eff,
+            mode: eff === "playback" ? "instrumental" : "audio",
           });
         }
+
+        // F7: write now_playing
+        this.$appdata.set("modules.liturgia.now_playing", {
+          day_index: this.dayIndex,
+          item_id: item.id,
+          mode: eff,
+          liturgia_index,
+        });
+
+        // F7/UX: execute snackbar
+        this._showExecSnackbar(item, eff);
+
+        // F4: time tracking — before auto-mark so open entry isn't closed
+        LiturgiaTimeTracking.recordExecution({ dayIndex: this.dayIndex, item, mode: eff });
+
+        // F4: auto-mark after recordExecution
+        this._autoMark(item);
 
       } else if (item.type === "file") {
         // If file handle is missing, open re-attach picker and defer execution
@@ -152,16 +232,13 @@ export default {
         }
 
         await this._executeFileItem(item);
-        return;
       }
-
-      // Auto-mark completed
-      this._autoMark(item);
     },
 
     async _executeFileItem(item) {
       const url = LiturgiaFiles.objectUrl(item.id);
       const kind = item.file_ref?.kind;
+      const liturgia_index = Date.now();
 
       if (kind === "video" || kind === "image") {
         this.$appdata.set("modules.liturgia.active_item", {
@@ -170,7 +247,7 @@ export default {
           id_album: null,
           playback_mode: null,
           display_name: item.display_name,
-          liturgia_index: Date.now(),
+          liturgia_index,
           media_url: url,
           media_type: kind,
           timer_duration: null,
@@ -182,6 +259,21 @@ export default {
         LiturgiaFiles.openDocument(url);
       }
 
+      // F7: write now_playing for file items
+      this.$appdata.set("modules.liturgia.now_playing", {
+        day_index: this.dayIndex,
+        item_id: item.id,
+        mode: "none",
+        liturgia_index,
+      });
+
+      // F7/UX: execute snackbar
+      this._showExecSnackbar(item, "none");
+
+      // F4: time tracking
+      LiturgiaTimeTracking.recordExecution({ dayIndex: this.dayIndex, item, mode: "file" });
+
+      // F4: auto-mark after recordExecution
       this._autoMark(item);
     },
 
@@ -194,6 +286,34 @@ export default {
 
       LiturgiaFiles.register(item.id, file);
       this._executeFileItem(item);
+    },
+
+    // F3/F10: Audio-only handler (does NOT write active_item or now_playing)
+    onAudioOnly(payload) {
+      const { item, mode } = payload;
+      if (!item.music_ref?.song_id) return;
+
+      this.$appdata.set("modules.liturgia.audio_trigger", null);
+      this.$appdata.set("modules.liturgia.audio_trigger", {
+        song_id: item.music_ref.song_id,
+        mode: mode === "playback" ? "instrumental" : "audio",
+      });
+
+      // F4: time tracking
+      const trackMode = mode === "playback" ? "audio_only_playback" : "audio_only_sung";
+      LiturgiaTimeTracking.recordExecution({ dayIndex: this.dayIndex, item, mode: trackMode });
+
+      // auto-mark
+      this._autoMark(item);
+    },
+
+    // F10: Lyric-only handler — opens lyric panel, no slide/audio/now_playing
+    onLyric(payload) {
+      const { item } = payload;
+      if (!item.music_ref?.song_id) return;
+      if (this.$media && typeof this.$media.openLyric === "function") {
+        this.$media.openLyric({ id_music: item.music_ref.song_id });
+      }
     },
 
     _autoMark(item) {

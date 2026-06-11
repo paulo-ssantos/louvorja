@@ -133,6 +133,51 @@
 
           <v-divider vertical class="mx-2" />
 
+          <!-- Group: Tempos (Time tracking) -->
+          <div class="liturgia-ribbon-group d-flex flex-column align-center">
+            <div class="d-flex flex-row align-center gap-1 px-1">
+
+              <!-- Enable switch -->
+              <div class="d-flex flex-column align-center mr-2">
+                <v-tooltip :text="t('time.enable_tooltip')" location="bottom" max-width="260">
+                  <template v-slot:activator="{ props }">
+                    <v-switch
+                      v-bind="props"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                      :model-value="timeTrackingEnabled"
+                      @update:model-value="toggleTimeTracking"
+                      class="liturgia-time-switch"
+                    />
+                  </template>
+                </v-tooltip>
+                <span class="text-caption liturgia-time-switch-label">{{ t('time.enable_label') }}</span>
+              </div>
+
+              <!-- Planned start time input (only shown when enabled) -->
+              <div v-if="timeTrackingEnabled" class="d-flex flex-column align-start">
+                <span class="text-caption text-medium-emphasis mb-1" style="font-size:10px">
+                  {{ t('time.planned_start_label') }}
+                </span>
+                <v-text-field
+                  density="compact"
+                  hide-details
+                  variant="outlined"
+                  type="time"
+                  :model-value="plannedStart"
+                  @update:model-value="onPlannedStartChange"
+                  class="liturgia-time-input"
+                  style="width:100px; font-size:12px"
+                />
+              </div>
+
+            </div>
+            <div class="text-caption text-medium-emphasis text-center liturgia-group-caption">{{ t('ribbon.group_time') }}</div>
+          </div>
+
+          <v-divider vertical class="mx-2" />
+
           <!-- Group: Backup -->
           <div class="liturgia-ribbon-group d-flex flex-column align-center">
             <div class="d-flex flex-row align-center">
@@ -193,6 +238,9 @@
       </v-tab>
     </v-tabs>
 
+    <!-- Time bar (per active day) -->
+    <LiturgiaTimeBar :day-index="activeDayIndex" />
+
     <!-- Day content -->
     <v-window v-model="activeDayIndex">
       <v-window-item v-for="i in 7" :key="i - 1" :value="i - 1">
@@ -220,6 +268,25 @@
     <v-snackbar v-model="importError" color="error" timeout="3000">
       {{ t('import.invalid') }}
     </v-snackbar>
+
+    <!-- Delete undo snackbar (F8) -->
+    <v-snackbar
+      v-model="undoSnackbar"
+      timeout="4000"
+      color="default"
+      location="bottom"
+    >
+      {{ undoMessage }}
+      <template v-slot:actions>
+        <v-btn
+          variant="text"
+          size="small"
+          @click="undoDelete"
+        >
+          {{ t('undo.action') }}
+        </v-btn>
+      </template>
+    </v-snackbar>
   </l-window>
 </template>
 
@@ -228,7 +295,13 @@ import manifest from "../manifest.json";
 import LWindow from "@/components/Window.vue";
 import LiturgiaDayView from "./components/LiturgiaDayView.vue";
 import LiturgiaAddDialog from "./components/LiturgiaAddDialog.vue";
+import LiturgiaTimeBar from "./components/LiturgiaTimeBar.vue";
 import { exportLj, parseLj } from "../helpers/LiturgiaBackup.js";
+import {
+  isEnabled as timeTrackingIsEnabled,
+  getPlannedStart,
+  setPlannedStart,
+} from "../helpers/LiturgiaTimeTracking.js";
 
 const TODAY = new Date();
 const WEEK_START = (() => {
@@ -254,6 +327,7 @@ export default {
     LWindow,
     LiturgiaDayView,
     LiturgiaAddDialog,
+    LiturgiaTimeBar,
   },
 
   data: () => ({
@@ -264,6 +338,11 @@ export default {
     importError: false,
     pendingImport: null,
     DAY_COLORS,
+    // Undo (F8)
+    undoSnackbar: false,
+    undoMessage: '',
+    _deletedItems: null,
+    _deletedDayIndex: null,
   }),
 
   computed: {
@@ -330,6 +409,15 @@ export default {
 
     activeDayItems() {
       return this.$userdata.get(`modules.liturgia.days.${this.activeDayIndex}.items`, []);
+    },
+
+    // Time tracking
+    timeTrackingEnabled() {
+      return this.$userdata.get('modules.liturgia.time_tracking.enabled', false);
+    },
+
+    plannedStart() {
+      return getPlannedStart(this.activeDayIndex);
     },
   },
 
@@ -410,11 +498,35 @@ export default {
     deleteSelected() {
       if (!this.selectedIds.length) return;
       const sel = new Set(this.selectedIds);
+      const dayIdx = this.activeDayIndex;
+
+      // Save snapshot for undo (F8)
+      const snapshot = this.activeDayItems.slice();
+      const count = this.selectedIds.length;
+
       const kept = this.activeDayItems
         .filter(i => !sel.has(i.id))
         .map((i, idx) => ({ ...i, order: idx }));
-      this.$userdata.set(`modules.liturgia.days.${this.activeDayIndex}.items`, kept);
+
+      this.$userdata.set(`modules.liturgia.days.${dayIdx}.items`, kept);
       this.$appdata.set('modules.liturgia.selected_ids', []);
+
+      // Store undo data
+      this._deletedItems = snapshot;
+      this._deletedDayIndex = dayIdx;
+      this.undoMessage = this.t('undo.deleted').replace('{n}', count);
+      this.undoSnackbar = true;
+    },
+
+    undoDelete() {
+      if (!this._deletedItems || this._deletedDayIndex === null) return;
+      this.$userdata.set(
+        `modules.liturgia.days.${this._deletedDayIndex}.items`,
+        this._deletedItems
+      );
+      this._deletedItems = null;
+      this._deletedDayIndex = null;
+      this.undoSnackbar = false;
     },
 
     // Add item
@@ -457,6 +569,15 @@ export default {
       this.$userdata.save();
       this.importConfirm = false;
       this.pendingImport = null;
+    },
+
+    // Time tracking
+    toggleTimeTracking(val) {
+      this.$userdata.set('modules.liturgia.time_tracking.enabled', !!val);
+    },
+
+    onPlannedStartChange(val) {
+      setPlannedStart(this.activeDayIndex, val);
     },
   },
 };
@@ -532,5 +653,25 @@ export default {
 .liturgia-options-check :deep(.v-label) {
   font-size: 11px;
   color: #333;
+}
+
+/* Time tracking ribbon group */
+.liturgia-time-switch {
+  margin-top: 0;
+}
+
+.liturgia-time-switch-label {
+  font-size: 10px;
+  color: #555;
+  max-width: 80px;
+  text-align: center;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.liturgia-time-input :deep(.v-field__input) {
+  font-size: 12px;
+  padding: 2px 6px;
+  min-height: 28px;
 }
 </style>

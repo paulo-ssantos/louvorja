@@ -142,8 +142,19 @@ export default {
       }
     },
 
+    // Normalize a string: NFD decompose, strip diacritics, strip punctuation, collapse whitespace
+    _normalize(str) {
+      return (str || "")
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "") // strip combining diacritics
+        .replace(/[^\w\s]/g, " ")        // strip punctuation -> space
+        .replace(/\s+/g, " ")            // collapse whitespace
+        .trim()
+        .toLowerCase();
+    },
+
     async runSearch() {
-      const q = (this.query || "").trim().toLowerCase();
+      const q = this._normalize(this.query);
       if (q.length < 2) {
         this.results = [];
         return;
@@ -153,7 +164,7 @@ export default {
 
       const songs = this.allSongs || [];
       const filtered = songs.filter((s) => {
-        const name = (s.name || "").toLowerCase();
+        const name = this._normalize(s.name);
         // Hymn number lives in `track` (number on hymnal records).
         const num = String(s.track ?? "").toLowerCase();
         return name.includes(q) || num.includes(q);

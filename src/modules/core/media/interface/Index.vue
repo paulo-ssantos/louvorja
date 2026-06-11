@@ -220,7 +220,9 @@ export default {
   watch: {
     liturgia_audio_trigger(trigger) {
       if (!trigger || !trigger.song_id) return
-      this.$media.open({ id_music: trigger.song_id, mode: trigger.mode || 'audio', minimized: true })
+      const modeMap = { sung: 'audio', playback: 'instrumental', audio: 'audio', instrumental: 'instrumental' }
+      const mode = modeMap[trigger.mode] || 'no_audio'
+      this.$media.open({ id_music: trigger.song_id, mode, minimized: true })
     },
     slide_index() {
       if (!this.module.show) {
