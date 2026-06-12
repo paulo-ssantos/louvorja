@@ -192,7 +192,7 @@ export default {
 
     // ─── music execution ──────────────────────────────────────────────────────
     async _executeMusicItem(item, modeOverride) {
-      const eff = modeOverride || item.music_ref?.playback_mode || "sung";
+      const eff = modeOverride || "sung";
 
       // Special-case: audio-only and lyric actions — no active_item / now_playing / popup changes
       if (eff === "audio_only_sung") {
